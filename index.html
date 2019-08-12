@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!-- core code from http://bl.ocks.org/jose187/4733747 -->
+<meta charset="utf-8">
+<script src="http://d3js.org/d3.v3.js"></script>
+<style>
+
+.link {
+  stroke: #aaa;
+  stroke-width: 10;
+}
+
+.node text {
+  stroke: #222;
+  cursor: pointer;
+  text-anchor: middle;
+}
+
+.node circle {
+  stroke: #aaa;
+  stroke-width: 3px;
+  /* fill: url(#node-gradient); */
+  fill: #fff;
+}
+
+</style>
+<body>
+  <script>
+
+  var width = 1000,
+  height = 600
+
+  var svg = d3.select("body").append("svg")
+  .attr("width", width)
+  .attr("height", height)
+  .call(d3.behavior.zoom().on("zoom", function () {
+    svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
+  }))
+  .append("g");
+
+  var force = d3.layout.force()
+  .gravity(0.05)
+  .charge(-1000)
+  .linkDistance(function(d) {
+    if(d.dotted) {
+      multiplier = 100;
+    } else {
+      multiplier = 30;
+    }
+    return Math.sqrt(d.target.linkcount*d.source.linkcount) * multiplier
+  })
+  .linkStrength(function(d) {
+    if(d.dotted) {
+      divisor = 20;
+    } else {
+      divisor = 5;
+    }
+    return (d.target.linkcount+d.source.linkcount) / divisor
+  })
+  .size([width, height]);
+
+  var drag = force.stop().drag()
+  .on("dragstart", function(d) {
+      d3.event.sourceEvent.stopPropagation();
+  });
+
+  d3.json("graphdata.json", function(json) {
+    force
+    .nodes(json.nodes)
+    .links(json.links)
+    .start();
+
+    var legendRectSize = 25;
+    var legendSpacing = 5;
+    pronounOrdinal = d3.scale.category10().domain(json.pronouns);
+
+    var legend = d3.select("svg")
+    .append("g")
+    .selectAll("g")
+    .data(pronounOrdinal.domain())
+    .enter()
+    .append("g")
+    .attr("class", "legend")
+    .attr("transform", function(d, i) {
+      var height = legendRectSize;
+      var x = 0;
+      var y = 15 + i * (height + 5);
+      return "translate(" + x + "," + y + ")";
+    });
+
+    var link = svg.selectAll(".link")
+    .data(json.links)
+    .enter().append("line")
+    .attr("class", "link")
+    .style("stroke-dasharray", function(l) {
+      if(l.dotted==true) {return "5,5"}
+      else {return "0"}
+    })
+
+    var node = svg.selectAll(".node")
+    .data(json.nodes)
+    .enter()
+    // .each(function (d) {
+    //   //add color
+    //   d3.select(this)
+    //   .append("linearGradient")
+    //   .attr("id", "node-gradient")
+    //   .selectAll("stop")
+    //   .data(function(d) {
+    //           colors = [];
+    //           procount = d.pronouns.length;
+    //           for(p = 0; p < procount; p++){
+    //             perc = Math.round(100*(p+1) / (procount+1));
+    //             percstring = perc.toString() + "%";
+    //             colors.push({
+    //               offset:percstring, color:pronounOrdinal(d.pronouns[p])
+    //             });
+    //           }
+    //           return colors;
+    //         })
+    //   .enter()
+    //   .append("stop")
+    //   .attr("offset", function(d) { return d.offset; })
+    //   .attr("stop-color", function(d) { return d.color; });
+    // })
+    .append("g")
+    .attr("class", "node")
+    .call(force.drag);
+
+    node.append("circle")
+    .attr("r","30");
+
+    d3.selectAll(".node")
+
+    node.append("text")
+    .style("font-size", "8pt")
+    .attr("dx", "0em")
+    .attr("dy", ".35em")
+    .text(function(d) { return d.name });
+
+    legend.append("rect")
+    .attr("width", legendRectSize)
+    .attr("height", legendRectSize)
+    .style("fill", function(d, i) {
+      return pronounOrdinal(json.pronouns[i]);
+    })
+    .style("stroke", "#333");
+
+    legend.append("text")
+    .attr("x", legendRectSize + legendSpacing)
+    .attr("y", legendRectSize - legendSpacing)
+    .text(function(d) { return d; });
+
+    force.on("tick", function() {
+      link.attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+      node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    });
+  });
+
+</script>
